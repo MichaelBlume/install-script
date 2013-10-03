@@ -1477,10 +1477,12 @@ def main():
         if json is None:
             version = get_python_version_string()
             log_msg('''{"python_version": "%s", "subdomain": "%s"}''' %
-                    (version, options.subdomain))
+                    (version, options.account))
             printMessage(STR_PYTHON_FAIL_MESSAGE %
                     (version, MINIMUM_SUPPORTED_PYTHON_VERSION))
             sys.exit(-1)
+        global SUBDOMAIN
+        SUBDOMAIN = options.account
         global LOGGLY_QA
         LOGGLY_QA = os.environ.get('LOGGLY_QA', '').split()
         log({"status":"start", "args": vars(options)})
