@@ -1434,7 +1434,8 @@ Action:
 \tloggly_help  Guideline for users for each step to configure syslog
 \tdryrun       Perform configuration steps without modifying anything
 Option:
-\tsubdomain    Name of loggly account being connected to
+\taccount      Name of loggly account being connected to
+\tsubdomain    same as --account (deprecated)
 \tauth         Loggly auth token to use for logging
 \tyes          Skip confirmations -- assume yes
 '''.lstrip()
@@ -1450,8 +1451,13 @@ def parse_options():
                                'sysinfo', 'loggly_help', 'dryrun'))
     parser.add_option("-y", "--yes", action="store_true", dest='noconfirm')
     parser.add_option("-s", "--subdomain")
-    parser.add_option("-a", "--auth")
+    parser.add_option("--auth")
+    parser.add_option("--account")
     (options, args) = parser.parse_args()
+    if options.account and options.subdomain:
+        parser.error("--account and --subdomain are mutually exclusive "
+                     "options")
+    options.account = options.account or options.subdomain
     return options
 
 def assert_os():
