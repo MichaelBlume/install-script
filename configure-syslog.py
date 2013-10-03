@@ -927,9 +927,8 @@ def create_loggly_config_file(syslog_id, syslog_configuration_details,
                         syslog_configuration_details.get("source"),
                         authorization_details)
     try:
-        config_file =  open(file_path, "w")
-        config_file.write(content)
-        config_file.close()
+        with open(file_path, "w") as config_file:
+            config_file.write(content)
         destfile = os.path.join(syslog_configuration_details.get("path"),
                                 LOGGLY_CONFIG_FILE)
         if user_type == NON_ROOT_USER:
