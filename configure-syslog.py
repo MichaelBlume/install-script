@@ -1038,25 +1038,38 @@ def modify_syslog_config_file(syslog_id, syslog_configuration_details,
     printMessage("Aborting")
     sys.exit(-1)
 
-def check_selinux_service_status(syslog_type):
+def handle_selinux(syslog_type, noconfirm=False):
     """
-    Run getenforce command and if output is 'Enforcing' then selinux is on
-    else it is off.
+    Run getenforce command and if output is 'Enforcing', try to make sure
+    rsyslog can read configs.
     """
     selinux_status = ''
     command = 'getenforce'
-    p = subprocess.Popen(command, shell=True, stderr=subprocess.PIPE,
-                         stdout=subprocess.PIPE)
-    p.wait()
-    output = p.stdout.readlines()
-    if output:
-        selinux_status = output[0].rstrip()
-    if selinux_status == 'Enforcing':
-        printLog(("SELinux is on. Please disable it "
-                        "and restart %s daemon manually." % syslog_type))
-        return True
-    else:
+    (_, ge_output, _) = run_command(command)
+    if ge_output:
+        selinux_status = ge_output[0].rstrip()
+    if selinux_status != 'Enforcing':
         return False
+    (_, ls_output, _) = run_command("ls -lZ /etc/rsyslog.d/22-loggly.conf")
+    if "syslog_conf_t" in ls_output:
+        return False
+
+    commands = ['semanage fcontext -a -t syslog_conf_t "/etc/rsyslog.d(/.*)?"',
+                'restorecon -R -v /etc/rsyslog.d/',
+                'semanage fcontext -a -t etc_t "/etc/rsyslog.d"',
+                'restorecon -v /etc/rsyslog.d',
+                ]
+    do_it = noconfirm or confirm("Hey, you've got SELinux enforcing, and "
+    "it's not gonna let rsyslog see its configs. We can fix that for you, "
+    "alright?\n\nHere's what we'll do:\n\n" + '\n'.join(commands)
+    + "\n\nOK?")
+    if do_it:
+        for command in commands:
+            run_command(command)
+        return False
+    else:
+        return True
+
 
 def run_command(command):
     """ runs a command and returns 3-tuple of
@@ -1271,8 +1284,8 @@ def install(current_environment):
     #default path for rsyslog will be /etc/rsyslog.d/
     modified_config_file = write_configuration(syslog_name_for_configuration,
                         authorization_details, user_type, options.noconfirm)
-    selinux_status = check_selinux_service_status(syslog_name_for_configuration)
-    if user_type == ROOT_USER and not selinux_status:
+    if (user_type == ROOT_USER and
+            not handle_selinux(syslog_name_for_configuration, options.noconfirm)):
         # 6. SIGHUP the syslog daemon.
         confirm_syslog_restart(syslog_name_for_configuration, options.noconfirm)
 
@@ -1297,9 +1310,9 @@ def uninstall(current_environment):
     perform_sanity_check_and_get_product_for_configuration(current_environment,
                                                 check_syslog_service = False)
     remove_configuration(syslog_name_for_configuration)
-    selinux_status = check_selinux_service_status(syslog_name_for_configuration)
+    noconfirm = current_environment['options'].noconfirm
+    selinux_status = handle_selinux(syslog_name_for_configuration, noconfirm)
     if not selinux_status:
-        noconfirm = current_environment['options'].noconfirm
         confirm_syslog_restart(syslog_name_for_configuration, noconfirm)
     printLog("Uninstall completed")
 
