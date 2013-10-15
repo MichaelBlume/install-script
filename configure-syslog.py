@@ -1066,7 +1066,12 @@ def handle_selinux(syslog_type, noconfirm=False):
     command_string + '\nIs it OK for the script to proceed?')
     if do_it:
         for command in commands:
-            run_command(command)
+            (return_code, _, _) = run_command(command)
+            if return_code != 1:
+                printLog('SELinux configuration error')
+                log({'status': 'failure', 'reason': 'selinux',
+                     'command': command})
+                return True
         return False
     else:
         return True
