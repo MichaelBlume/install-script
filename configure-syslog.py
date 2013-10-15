@@ -1059,10 +1059,11 @@ def handle_selinux(syslog_type, noconfirm=False):
                 'semanage fcontext -a -t etc_t "/etc/rsyslog.d"',
                 'restorecon -v /etc/rsyslog.d',
                 ]
-    do_it = noconfirm or confirm("Hey, you've got SELinux enforcing, and "
-    "it's not gonna let rsyslog see its configs. We can fix that for you, "
-    "alright?\n\nHere's what we'll do:\n\n" + '\n'.join(commands)
-    + "\n\nOK?")
+    command_string = sum(('\t%s\n' % cmd for cmd in commands), '')
+    do_it = noconfirm or confirm(
+    "You have SELinux enabled and your rsyslog has not been given read access "
+    "to /etc/rsyslog.d.\n\nThe following commands must be executed:\n\n" +
+    command_string + '\nIs it OK for the script to proceed?')
     if do_it:
         for command in commands:
             run_command(command)
